@@ -25,7 +25,7 @@ def test_extract_returns_json(monkeypatch):
     }
 
     monkeypatch.setattr(
-        "src.main.requests.get",
+        "src.extract.requests.get",
         lambda url: fake_response
     )
 
