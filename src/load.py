@@ -3,6 +3,19 @@ import sqlite3
 
 DATABASE_PATH = "exchange_rates.db"
 
+def batch_exists(batch_id):
+    with sqlite3.connect(DATABASE_PATH) as connection:
+        result = connection.execute(
+            """
+            SELECT 1
+            FROM bronze_exchange_rates
+            WHERE batch_id = ?
+            LIMIT 1
+            """,
+            (batch_id,),
+        ).fetchone()
+
+    return result is not None
 
 def create_tables():
     with sqlite3.connect(DATABASE_PATH) as connection:
