@@ -24,6 +24,9 @@ def test_extract_returns_json(monkeypatch):
         }
     }
 
+    # Replace the network call so the test does not depend on the
+    # external API. We only need `response.json()` to return the
+    # expected payload for the rest of the pipeline.
     monkeypatch.setattr(
         "src.extract.requests.get",
         lambda url: fake_response

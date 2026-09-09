@@ -6,6 +6,8 @@ from src import gold, load
 def test_gold_returns_latest_and_previous_rate(tmp_path, monkeypatch):
     test_db = tmp_path / "test.db"
 
+    # Use a temporary SQLite database so the test cannot modify
+    # the project's real exchange-rate database.
     monkeypatch.setattr(load, "DATABASE_PATH", test_db)
     monkeypatch.setattr(gold, "DATABASE_PATH", test_db)
 
@@ -52,6 +54,8 @@ def test_gold_returns_latest_and_previous_rate(tmp_path, monkeypatch):
             ],
         )
 
+    # Create the gold view which computes previous_rate and
+    # daily_change_pct using window functions.
     gold.create_gold_view()
 
     with sqlite3.connect(test_db) as connection:
@@ -65,4 +69,5 @@ def test_gold_returns_latest_and_previous_rate(tmp_path, monkeypatch):
 
     assert result[0] == 0.10
     assert result[1] == 0.09
+    # daily_change_pct = (0.10 - 0.09) / 0.09 * 100 ~= 11.1111
     assert result[2] == 11.1111
