@@ -1,9 +1,27 @@
+"""
+Create the gold-stage view for analytics.
+
+The gold view exposes the most recent exchange rate per currency pair,
+alongside the previous available rate and the percentage change between
+the two observations. Window functions are used to find the previous
+rate and select the latest row for each currency pair.
+"""
+
 import sqlite3
 
 from src.load import DATABASE_PATH
 
 
 def create_gold_view():
+    """Ensure the Gold SQL view exists in the SQLite database.
+
+    Notes:
+        - `LAG()` retrieves the previous available rate for each
+          currency pair.
+        - `ROW_NUMBER()` identifies the latest observation for each pair.
+        - Using a view keeps Gold derived from the current Silver data
+          without storing a separate copy of the analytical result.
+    """
     with sqlite3.connect(DATABASE_PATH) as connection:
         connection.execute("""
             CREATE VIEW IF NOT EXISTS gold_exchange_rates AS

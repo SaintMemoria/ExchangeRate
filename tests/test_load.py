@@ -8,6 +8,8 @@ from src import load
 def test_create_tables(tmp_path, monkeypatch):
     test_db = tmp_path / "test.db"
 
+    # Point the module-level DATABASE_PATH to a temporary file so
+    # the created tables live in an isolated test database.
     monkeypatch.setattr(load, "DATABASE_PATH", test_db)
 
     load.create_tables()
@@ -62,6 +64,9 @@ def test_load_batch(tmp_path, monkeypatch):
         },
     ]
 
+    # Persist both the bronze envelope and the flattened silver rows.
+    # We will inspect the raw_json stored for the bronze row and the
+    # explicit silver rows to ensure both were written.
     load.load_batch(bronze_record, silver_records)
 
     with sqlite3.connect(test_db) as connection:
@@ -87,6 +92,7 @@ def test_load_batch(tmp_path, monkeypatch):
     assert len(silver_results) == 2
     assert ("SEK", "EUR", 0.091) in silver_results
     assert ("SEK", "USD", 0.106) in silver_results
+
 
 def test_load_batch_rolls_back_on_error(tmp_path, monkeypatch):
     test_db = tmp_path / "test.db"
@@ -119,6 +125,10 @@ def test_load_batch_rolls_back_on_error(tmp_path, monkeypatch):
         },
     ]
 
+    # The two silver records intentionally use the same
+    # (batch_id, target_currency) to violate the composite primary key
+    # and trigger an IntegrityError. The database operations should
+    # be transactional and roll back, leaving no rows persisted.
     with pytest.raises(sqlite3.IntegrityError):
         load.load_batch(bronze_record, silver_records)
 

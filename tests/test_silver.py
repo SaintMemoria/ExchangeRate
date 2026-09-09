@@ -16,6 +16,9 @@ def test_create_silver_records():
 
     result = create_silver_records(bronze_record)
 
+    # The conversion_rates mapping is flattened into one row per
+    # currency. Python dict insertion order is preserved, so the first
+    # record corresponds to EUR in this test input.
     assert len(result) == 2
     assert result[0]["batch_id"] == "20260905T093000+0200"
     assert result[0]["base_currency"] == "SEK"
