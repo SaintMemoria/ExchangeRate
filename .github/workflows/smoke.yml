@@ -1,0 +1,40 @@
+name: API Smoke Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Test real ExchangeRate API
+        env:
+          EXCHANGE_RATE_API_KEY: ${{ secrets.EXCHANGE_RATE_API_KEY }}
+        run: |
+          python - <<'PY'
+          from src.extract import extract
+
+          data = extract()
+
+          assert data["base_code"] == "SEK"
+          assert "conversion_rates" in data
+          assert isinstance(data["conversion_rates"], dict)
+          assert len(data["conversion_rates"]) > 0
+
+          print(
+              f"Smoke test passed: "
+              f"{len(data['conversion_rates'])} exchange rates received."
+          )
+          PY
