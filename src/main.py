@@ -4,8 +4,7 @@ from src.gold import create_gold_view
 from src.load import (
     batch_exists,
     create_tables,
-    load_bronze,
-    load_silver,
+    load_batch,
 )
 from src.silver import create_silver_records
 
@@ -23,8 +22,7 @@ def main():
 
     silver_data = create_silver_records(bronze_data)
 
-    load_bronze(bronze_data)
-    load_silver(silver_data)
+    load_batch(bronze_data, silver_data)
 
 
 if __name__ == "__main__":
