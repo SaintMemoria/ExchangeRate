@@ -2,7 +2,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from src.main import extract
+from src.extract import extract
 
 
 def test_extract_requires_api_key(monkeypatch):

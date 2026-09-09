@@ -1,5 +1,7 @@
 import sqlite3
 
+import pytest
+
 from src import load
 
 
@@ -24,7 +26,8 @@ def test_create_tables(tmp_path, monkeypatch):
     assert "bronze_exchange_rates" in table_names
     assert "silver_exchange_rates" in table_names
 
-def test_load_bronze(tmp_path, monkeypatch):
+
+def test_load_batch(tmp_path, monkeypatch):
     test_db = tmp_path / "test.db"
     monkeypatch.setattr(load, "DATABASE_PATH", test_db)
 
@@ -41,26 +44,6 @@ def test_load_bronze(tmp_path, monkeypatch):
             },
         },
     }
-
-    load.load_bronze(bronze_record)
-
-    with sqlite3.connect(test_db) as connection:
-        result = connection.execute(
-            """
-            SELECT batch_id, ingested_at, raw_json
-            FROM bronze_exchange_rates
-            """
-        ).fetchone()
-
-    assert result[0] == "20260908T120000+0200"
-    assert result[1] == "2026-09-08T12:00:00+02:00"
-    assert '"base_code": "SEK"' in result[2]
-
-def test_load_silver(tmp_path, monkeypatch):
-    test_db = tmp_path / "test.db"
-    monkeypatch.setattr(load, "DATABASE_PATH", test_db)
-
-    load.create_tables()
 
     silver_records = [
         {
@@ -79,10 +62,17 @@ def test_load_silver(tmp_path, monkeypatch):
         },
     ]
 
-    load.load_silver(silver_records)
+    load.load_batch(bronze_record, silver_records)
 
     with sqlite3.connect(test_db) as connection:
-        results = connection.execute(
+        bronze_result = connection.execute(
+            """
+            SELECT batch_id, ingested_at, raw_json
+            FROM bronze_exchange_rates
+            """
+        ).fetchone()
+
+        silver_results = connection.execute(
             """
             SELECT base_currency, target_currency, exchange_rate
             FROM silver_exchange_rates
@@ -90,6 +80,56 @@ def test_load_silver(tmp_path, monkeypatch):
             """
         ).fetchall()
 
-    assert len(results) == 2
-    assert ("SEK", "EUR", 0.091) in results
-    assert ("SEK", "USD", 0.106) in results
+    assert bronze_result[0] == "20260908T120000+0200"
+    assert bronze_result[1] == "2026-09-08T12:00:00+02:00"
+    assert '"base_code": "SEK"' in bronze_result[2]
+
+    assert len(silver_results) == 2
+    assert ("SEK", "EUR", 0.091) in silver_results
+    assert ("SEK", "USD", 0.106) in silver_results
+
+def test_load_batch_rolls_back_on_error(tmp_path, monkeypatch):
+    test_db = tmp_path / "test.db"
+    monkeypatch.setattr(load, "DATABASE_PATH", test_db)
+
+    load.create_tables()
+
+    bronze_record = {
+        "batch_id": "20260908T120000+0200",
+        "ingested_at": "2026-09-08T12:00:00+02:00",
+        "data": {
+            "base_code": "SEK",
+        },
+    }
+
+    silver_records = [
+        {
+            "batch_id": "20260908T120000+0200",
+            "ingested_at": "2026-09-08T12:00:00+02:00",
+            "base_currency": "SEK",
+            "target_currency": "EUR",
+            "exchange_rate": 0.091,
+        },
+        {
+            "batch_id": "20260908T120000+0200",
+            "ingested_at": "2026-09-08T12:00:00+02:00",
+            "base_currency": "SEK",
+            "target_currency": "EUR",
+            "exchange_rate": 0.092,
+        },
+    ]
+
+    with pytest.raises(sqlite3.IntegrityError):
+        load.load_batch(bronze_record, silver_records)
+
+    with sqlite3.connect(test_db) as connection:
+        bronze_count = connection.execute(
+            "SELECT COUNT(*) FROM bronze_exchange_rates"
+        ).fetchone()[0]
+
+        silver_count = connection.execute(
+            "SELECT COUNT(*) FROM silver_exchange_rates"
+        ).fetchone()[0]
+
+    assert bronze_count == 0
+    assert silver_count == 0

@@ -39,11 +39,11 @@ def create_tables():
         """)
 
 
-def load_bronze(bronze_record):
+def load_batch(bronze_record, silver_records):
     with sqlite3.connect(DATABASE_PATH) as connection:
         connection.execute(
             """
-            INSERT OR IGNORE INTO bronze_exchange_rates (
+            INSERT INTO bronze_exchange_rates (
                 batch_id,
                 ingested_at,
                 raw_json
@@ -57,12 +57,7 @@ def load_bronze(bronze_record):
             ),
         )
 
-
-def load_silver(silver_records):
-    rows = []
-
-    for record in silver_records:
-        rows.append(
+        rows = [
             (
                 record["batch_id"],
                 record["ingested_at"],
@@ -70,12 +65,12 @@ def load_silver(silver_records):
                 record["target_currency"],
                 record["exchange_rate"],
             )
-        )
+            for record in silver_records
+        ]
 
-    with sqlite3.connect(DATABASE_PATH) as connection:
         connection.executemany(
             """
-            INSERT OR IGNORE INTO silver_exchange_rates (
+            INSERT INTO silver_exchange_rates (
                 batch_id,
                 ingested_at,
                 base_currency,

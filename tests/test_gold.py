@@ -28,7 +28,30 @@ def test_gold_returns_latest_and_previous_rate(tmp_path, monkeypatch):
         },
     ]
 
-    load.load_silver(silver_records)
+    with sqlite3.connect(test_db) as connection:
+        connection.executemany(
+            """
+            INSERT INTO silver_exchange_rates (
+                batch_id,
+                ingested_at,
+                base_currency,
+                target_currency,
+                exchange_rate
+            )
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    record["batch_id"],
+                    record["ingested_at"],
+                    record["base_currency"],
+                    record["target_currency"],
+                    record["exchange_rate"],
+                )
+                for record in silver_records
+            ],
+        )
+
     gold.create_gold_view()
 
     with sqlite3.connect(test_db) as connection:
